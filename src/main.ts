@@ -51,8 +51,27 @@ function ping(): void {
 function startMusic():void{if(!settings.musicEnabled||musicOscillators.length)return;try{audioContext??=new AudioContext();if(audioContext.state==='suspended')void audioContext.resume();musicGain=audioContext.createGain();musicGain.gain.value=.012*settings.masterVolume;musicGain.connect(audioContext.destination);[110,164.81,220].forEach((hz,i)=>{const o=audioContext!.createOscillator();o.type=i===1?'sine':'triangle';o.frequency.value=hz;o.connect(musicGain!);o.start();musicOscillators.push(o);});}catch{/* optional audio */}}
 function stopMusic():void{musicOscillators.forEach(o=>{try{o.stop();}catch{/* stopped */}});musicOscillators=[];musicGain?.disconnect();musicGain=null;}
 function announce(message: string): void {
-  notice = message; window.clearTimeout(noticeTimer); render();
-  noticeTimer = window.setTimeout(() => { notice = ''; render(); }, 4200);
+  notice = message;
+  window.clearTimeout(noticeTimer);
+  // Update the notice in place. Calling render() here used to replace the entire
+  // game DOM for every toast, resetting scroll, focus and active controls.
+  const page = root!.querySelector<HTMLElement>('.page');
+  let noticeElement = page?.querySelector<HTMLElement>('.notice');
+  if (page && !noticeElement) {
+    noticeElement = document.createElement('div');
+    noticeElement.className = 'notice';
+    noticeElement.setAttribute('role', 'status');
+    const heading = page.querySelector('.page-heading');
+    heading?.insertAdjacentElement('afterend', noticeElement);
+  }
+  if (noticeElement) {
+    noticeElement.textContent = '✦ ' + message;
+    noticeElement.hidden = false;
+  }
+  noticeTimer = window.setTimeout(() => {
+    notice = '';
+    noticeElement?.remove();
+  }, 4200);
 }
 function navButton(id: GameTab, label: string, symbol: string): string {
   return `<button class="nav-item ${tab === id ? 'active' : ''}" data-tab="${id}"><span>${symbol}</span>${label}</button>`;
@@ -232,7 +251,7 @@ function handleAction(action: string, target: HTMLElement): void {
 }
 root.addEventListener('click', event => {
   if(settings.musicEnabled)startMusic();
-  const accent=(event.target as HTMLElement).closest<HTMLElement>('[data-accent]'); if(accent?.dataset.accent){settings.accent=accent.dataset.accent as GameSettings['accent'];applySettings(settings);saveSettings(settings);render();return;}
+  const accent=(event.target as HTMLElement).closest<HTMLElement>('[data-accent]'); if(accent?.dataset.accent){settings.accent=accent.dataset.accent as GameSettings['accent'];applySettings(settings);saveSettings(settings);root!.querySelectorAll<HTMLElement>('[data-accent]').forEach(item=>item.classList.toggle('selected',item===accent));return;}
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-tab], [data-action]');
   if (!target) return;
   if (target.dataset.tab) { event.preventDefault(); tab = target.dataset.tab as GameTab; render(); return; }
@@ -240,7 +259,7 @@ root.addEventListener('click', event => {
 });
 root.addEventListener('change', async event => {
   const target=event.target as HTMLInputElement|HTMLSelectElement;
-  if(target.dataset.setting){const key=target.dataset.setting as keyof GameSettings;if(key==='theme')settings.theme=target.value as GameSettings['theme'];else if(key==='customAccent')settings.customAccent=target.value;else if(key==='fontScale')settings.fontScale=Number(target.value) as GameSettings['fontScale'];else if(target instanceof HTMLInputElement&&target.type==='checkbox')(settings as unknown as Record<string,unknown>)[key]=target.checked;else if(target instanceof HTMLInputElement&&target.type==='range')(settings as unknown as Record<string,unknown>)[key]=Number(target.value);applySettings(settings);saveSettings(settings);if(key==='musicEnabled')settings.musicEnabled?startMusic():stopMusic();if(tab==='settings')render();return;}
+  if(target.dataset.setting){const key=target.dataset.setting as keyof GameSettings;if(key==='theme')settings.theme=target.value as GameSettings['theme'];else if(key==='customAccent')settings.customAccent=target.value;else if(key==='fontScale')settings.fontScale=Number(target.value) as GameSettings['fontScale'];else if(target instanceof HTMLInputElement&&target.type==='checkbox')(settings as unknown as Record<string,unknown>)[key]=target.checked;else if(target instanceof HTMLInputElement&&target.type==='range')(settings as unknown as Record<string,unknown>)[key]=Number(target.value);applySettings(settings);saveSettings(settings);if(key==='musicEnabled')settings.musicEnabled?startMusic():stopMusic();return;}
   if (!(target instanceof HTMLInputElement)||target.id!=='save-import'||!target.files?.[0]) return;
   try { save = await importSave(target.files[0]); tab = 'overview'; commit(); announce('Save imported successfully. Welcome back!'); render(); }
   catch (error) { announce(error instanceof Error ? error.message : 'Could not import that save file.'); }
