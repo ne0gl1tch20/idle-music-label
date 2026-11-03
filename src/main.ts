@@ -8,6 +8,7 @@ import { artistCost, artistTrainingCost, createArtist, createTrack, incomePerSec
 import { exportSave, importSave, loadSave, persistSave, resetSave } from './game/storage';
 import { rankings, timeToChart, claimWeeklyChart } from './game/charts';
 import { MILESTONES, milestoneProgress, claimMilestone } from './game/milestones';
+import { PROMOTION_TIERS, PROMOTION_COOLDOWN, applyPromotion } from './game/promotions';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('Missing app root');
@@ -75,7 +76,11 @@ function studioPage(): string {
 function releasesPage(): string {
   const ready = save.tracks.filter(track => !track.releasedAt), released = save.tracks.filter(track => track.releasedAt);
   const artists = save.artists.map(artist => `<option value="${escapeHtml(artist.id)}">${escapeHtml(artist.name)} · ${escapeHtml(artist.genre)}</option>`).join('');
-  const cards = released.length ? released.map(track => `<article class="track-card"><div class="track-cover"><span>♫</span><small>${escapeHtml(track.genre)}</small></div><div class="track-info"><span class="eyebrow">SINGLE · LIVE</span><h3>${escapeHtml(track.title)}</h3><p>${escapeHtml(artistById(track.artistId)?.name ?? 'Unknown artist')}</p><div class="track-metrics"><span>◉ ${compact(track.streams)} streams</span><b>QUALITY ${track.quality}/100</b></div></div></article>`).join('') : '<div class="empty-state"><span>◉</span><b>No releases yet.</b><p>Record a track and send it out into the world.</p></div>';
+  const cards = released.length ? released.map(track => {
+    const cooling = !!track.lastPromotedAt && Date.now() - track.lastPromotedAt < PROMOTION_COOLDOWN;
+    const campaigns = PROMOTION_TIERS.map(tier => '<button class="promo-btn" data-action="promote" data-id="' + track.id + '" data-tier="' + tier.id + '" title="' + tier.description + '" ' + (save.cash < tier.cost || cooling ? 'disabled' : '') + '>' + tier.name + ' · ' + money(tier.cost) + '</button>').join('');
+    return '<article class="track-card"><div class="track-cover"><span>♫</span><small>' + escapeHtml(track.genre) + '</small></div><div class="track-info"><span class="eyebrow">SINGLE · LIVE</span><h3>' + escapeHtml(track.title) + '</h3><p>' + escapeHtml(artistById(track.artistId)?.name ?? 'Unknown artist') + '</p><div class="track-metrics"><span>◉ ' + compact(track.streams) + ' streams</span><b>QUALITY ' + track.quality + '/100</b></div><div class="promo-summary"><small>' + (track.promotions ?? 0) + ' campaigns · ' + compact(track.weeklyStreams ?? 0) + ' this week</small>' + (cooling ? '<small class="cooldown-label">Promotion cooldown active</small>' : '') + '</div><div class="promo-actions">' + campaigns + '</div></div></article>';
+  }).join('') : '<div class="empty-state"><span>◉</span><b>No releases yet.</b><p>Record a track and send it out into the world.</p></div>';
   return `<section class="recording-panel"><div><span class="eyebrow">THE RECORDING BOOTH</span><h2>Make something<br>worth listening to.</h2><p>Choose an artist and record a new single. Better studios make higher-quality tracks.</p></div><div class="recording-form"><label for="track-title">TRACK TITLE</label><input id="track-title" maxlength="32" placeholder="e.g. Midnight Memories"><label for="track-artist">PERFORMING ARTIST</label><select id="track-artist" ${save.artists.length === 0 ? 'disabled' : ''}><option value="">Choose an artist</option>${artists}</select><div class="recording-cost"><span>Recording session</span><b>${money(RECORDING_COST)}</b></div><button class="primary-btn full-btn" data-action="record" ${save.artists.length === 0 || save.cash < RECORDING_COST ? 'disabled' : ''}>Record track ↗</button>${save.artists.length === 0 ? '<small class="form-hint">Sign an artist before recording music.</small>' : ''}</div></section>${ready.length ? `<div class="section-heading"><div><span class="eyebrow">READY FOR DISTRIBUTION</span><h2>Unreleased tracks</h2></div></div><section class="ready-list">${ready.map(track => `<article class="ready-track"><div class="mini-cover">♫</div><div><b>${escapeHtml(track.title)}</b><small>${escapeHtml(artistById(track.artistId)?.name ?? 'Unknown artist')} · Quality ${track.quality}/100</small></div><button class="primary-btn" data-action="release" data-id="${track.id}" ${save.cash < RELEASE_COST ? 'disabled' : ''}>Release · ${money(RELEASE_COST)}</button></article>`).join('')}</section>` : ''}<div class="section-heading"><div><span class="eyebrow">DISTRIBUTION</span><h2>Your discography</h2></div><span class="muted-label">${released.length} RELEASES</span></div><section class="track-grid">${cards}</section>`;
 }
 function chartsPage(): string {
@@ -157,6 +162,7 @@ function handleAction(action: string, target: HTMLElement): void {
     const track=createTrack(`track-${Date.now()}`, title, artist, quality); track.royaltyPercent=artist.royaltyPercent??20; save.tracks.push(track);
     ping(); commit(); announce(`"${title}" is recorded and ready for release!`); render(); return;
   }
+  if (action === 'promote') { const track=save.tracks.find(item=>item.id===target.dataset.id); if(!track)return; const result=applyPromotion(save,track,target.dataset.tier??''); if(!result)return announce('Promotion unavailable. Check your cash or wait for this track’s cooldown.'); commit(); ping(); announce(result.tier.name+' boosted '+track.title+' by '+compact(result.streams)+' streams and '+compact(result.fans)+' fans!'); render(); return; }
   if (action === 'release') {
     const track = save.tracks.find(item => item.id === target.dataset.id); if (!track || track.releasedAt) return;
     if (save.cash < RELEASE_COST) return announce('Not enough cash to distribute this track.');
