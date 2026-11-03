@@ -246,6 +246,19 @@ root.addEventListener('change', async event => {
   catch (error) { announce(error instanceof Error ? error.message : 'Could not import that save file.'); }
 });
 render();
+// Android mirrors the GuessTheNumber flow: check the repository Web Play manifest at startup,
+// download only when its published bundle version differs, then activate the verified cache.
+if (isAndroidApp) {
+  void WebPlaySync.checkAndSync().then(async result => {
+    if (result.updated && result.basePath) {
+      await WebView.setServerBasePath({ path: result.basePath });
+      await WebView.persistServerBasePath();
+      window.location.reload();
+    }
+  }).catch(() => {
+    // Keep the bundled or previously synced version when offline or when GitHub is unavailable.
+  });
+}
 if(settings.musicEnabled)root.addEventListener('pointerdown',()=>startMusic(),{once:true});
 if (offlineSeconds > 0) persistSave(save);
 window.setInterval(() => { const reward = claimWeeklyChart(save); if (reward > 0) notice = 'Weekly chart rewards collected: ' + money(reward) + '!'; tick(save, 1); commit(); }, 1000);
