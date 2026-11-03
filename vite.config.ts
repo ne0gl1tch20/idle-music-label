@@ -1,4 +1,14 @@
 import { defineConfig } from 'vite';
 
-// Relative asset paths work both on GitHub project pages and inside Capacitor's local WebView.
-export default defineConfig({ base: './' });
+// Emit both the public landing page and the directly playable game.
+export default defineConfig({
+  base: './',
+  build: {
+    rollupOptions: {
+      input: {
+        landing: 'index.html',
+        play: 'play.html',
+      },
+    },
+  },
+});
