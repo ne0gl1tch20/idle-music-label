@@ -6,7 +6,7 @@ const LEGACY_KEY = 'idle-music-label.save.v1';
 
 export function createNewSave(): GameSave {
   return { version: 2, cash: STARTING_CASH, fans: 120, totalStreams: 0, reputation: 1,
-    studioLevel: 1, marketingLevel: 0, artists: [], tracks: [], lastSavedAt: Date.now(), lifetimeEarnings: 0 };
+    studioLevel: 1, marketingLevel: 0, artists: [], tracks: [], lastSavedAt: Date.now(), lifetimeEarnings: 0, claimedMilestones: [] };
 }
 function validSave(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -44,7 +44,8 @@ export function loadSave(): { save: GameSave; offlineSeconds: number } {
     const save: GameSave = parsed.version === 2
       ? { ...fresh, ...parsed, version: 2,
           artists: Array.isArray(parsed.artists) ? parsed.artists as Artist[] : [],
-          tracks: Array.isArray(parsed.tracks) ? parsed.tracks as Track[] : [] }
+          tracks: Array.isArray(parsed.tracks) ? parsed.tracks as Track[] : [],
+          claimedMilestones: Array.isArray(parsed.claimedMilestones) ? parsed.claimedMilestones.filter((id): id is string => typeof id === 'string') : [] }
       : migrateLegacy(parsed, fresh);
     const elapsed = Math.max(0, Math.floor((Date.now() - (Number(save.lastSavedAt) || Date.now())) / 1000));
     const offlineSeconds = Math.min(elapsed, MAX_OFFLINE_SECONDS);
@@ -75,7 +76,9 @@ export function importSave(file: File): Promise<GameSave> {
       throw new Error('That file is not a valid Idle Music Label save.');
     }
     const fresh = createNewSave();
-    return { ...fresh, ...parsed, version: 2, lastSavedAt: Date.now() } as GameSave;
+    return { ...fresh, ...parsed, version: 2,
+      claimedMilestones: Array.isArray(parsed.claimedMilestones) ? parsed.claimedMilestones.filter((id): id is string => typeof id === 'string') : [],
+      lastSavedAt: Date.now() } as GameSave;
   });
 }
 export function resetSave(): GameSave {
