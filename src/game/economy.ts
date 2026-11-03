@@ -12,7 +12,7 @@ export function studioCost(level: number): number { return Math.floor(STUDIO_BAS
 export function marketingCost(level: number): number { return Math.floor(MARKETING_BASE_COST * 1.72 ** level); }
 export function artistCost(count: number): number { return Math.floor(ARTIST_BASE_COST * 1.85 ** count); }
 export function artistTrainingCost(level: number): number { return Math.floor(200 * 1.8 ** Math.max(0, level - 1)); }
-export function trackIncome(track: Track): number { return track.releasedAt ? Math.max(0.35, track.quality * 0.12) : 0; }
+export function trackIncome(track: Track): number { return track.releasedAt ? Math.max(0.35, track.quality * 0.12) * (1 - Math.min(80, Math.max(0, track.royaltyPercent ?? 0)) / 100) : 0; }
 export function incomePerSecond(save: GameSave): number {
   const released = save.tracks.reduce((sum, track) => sum + trackIncome(track), 0);
   const artistBonus = save.artists.reduce((sum, artist) => sum + artist.level * 0.65, 0);
@@ -30,10 +30,10 @@ export function tick(save: GameSave, seconds = 1): void {
   for (const track of releasedTracks) track.streams += Math.max(1, Math.floor(track.quality * 0.8) * elapsed);
 }
 export function createArtist(id: string, name: string, genre: string): Artist {
-  return { id, name, genre, level: 1, fans: 80 };
+  const now = Date.now(); return { id, name, genre, level: 1, fans: 80, contractStartedAt: now, contractEndsAt: now + 28 * 86400000, contractWeeks: 4, royaltyPercent: 15, collaborations: 0 };
 }
 export function createTrack(id: string, title: string, artist: Artist, quality: number): Track {
-  return { id, title, artistId: artist.id, genre: artist.genre, quality, releasedAt: null, streams: 0 };
+  return { id, title, artistId: artist.id, genre: artist.genre, quality, releasedAt: null, streams: 0, royaltyPercent: artist.royaltyPercent ?? 0, collaborators: [] };
 }
 export function releaseTrack(save: GameSave, track: Track): void {
   track.releasedAt = Date.now();
