@@ -27,7 +27,7 @@ export function tick(save: GameSave, seconds = 1): void {
   const streamGain = releasedTracks.reduce((sum, track) => sum + Math.max(1, track.quality * 0.8), 0) * elapsed;
   save.totalStreams += streamGain;
   save.fans += (save.marketingLevel * 0.08 + save.artists.length * 0.025) * elapsed;
-  for (const track of releasedTracks) track.streams += Math.max(1, Math.floor(track.quality * 0.8) * elapsed);
+  for (const track of releasedTracks) { const gained=Math.max(1, Math.floor(track.quality * 0.8) * elapsed); track.streams += gained; track.weeklyStreams = (track.weeklyStreams ?? 0) + gained; }
 }
 export function createArtist(id: string, name: string, genre: string): Artist {
   return { id, name, genre, level: 1, fans: 80 };
