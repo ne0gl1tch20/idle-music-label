@@ -12,7 +12,7 @@ export function studioCost(level: number): number { return Math.floor(STUDIO_BAS
 export function marketingCost(level: number): number { return Math.floor(MARKETING_BASE_COST * 1.72 ** level); }
 export function artistCost(count: number): number { return Math.floor(ARTIST_BASE_COST * 1.85 ** count); }
 export function artistTrainingCost(level: number): number { return Math.floor(200 * 1.8 ** Math.max(0, level - 1)); }
-export function trackIncome(track: Track): number { return track.releasedAt ? Math.max(0.35, track.quality * 0.12) : 0; }
+export function trackIncome(track: Track): number { return track.releasedAt ? Math.max(0.35, track.quality * 0.12) * (1 - Math.min(60, Math.max(0, track.royaltyPercent ?? 0)) / 100) : 0; }
 export function incomePerSecond(save: GameSave): number {
   const released = save.tracks.reduce((sum, track) => sum + trackIncome(track), 0);
   const artistBonus = save.artists.reduce((sum, artist) => sum + artist.level * 0.65, 0);
