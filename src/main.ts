@@ -184,6 +184,7 @@ function handleAction(action: string, target: HTMLElement): void {
     const artist = artistById(root!.querySelector<HTMLSelectElement>('#track-artist')?.value ?? '');
     if (!title || !artist) return announce('Add a track title and choose an artist first.');
     if (save.cash < RECORDING_COST) return announce('Not enough cash for a recording session.');
+    if (!isActiveArtist(artist)) return announce('Renew this artist contract before recording.');
     save.cash -= RECORDING_COST;
     const quality = Math.min(100, 42 + save.studioLevel * 7 + artist.level * 3 + Math.floor(Math.random() * 13));
     save.tracks.push(createTrack(`track-${Date.now()}`, title, artist, quality));
@@ -193,6 +194,51 @@ function handleAction(action: string, target: HTMLElement): void {
     const track = save.tracks.find(item => item.id === target.dataset.id); if (!track || track.releasedAt) return;
     if (save.cash < RELEASE_COST) return announce('Not enough cash to distribute this track.');
     save.cash -= RELEASE_COST; releaseTrack(save, track); ping(); commit(); announce(`"${track.title}" is now live. Your audience is growing!`); render(); return;
+  }
+  if (action === 'renew-contract') {
+    const artist = artistById(target.dataset.id ?? ''); if (!artist) return;
+    const cost = contractRenewalCost(artist);
+    if (save.cash < cost) return announce('Not enough cash to renew this artist contract.');
+    save.cash -= cost; renewContract(artist); commit(); ping(); announce(artist.name + "'s four-week contract has been renewed."); render(); return;
+  }
+  if (action === 'collaborate') {
+    const title = root!.querySelector<HTMLInputElement>('#collab-title')?.value.trim() ?? '';
+    const first = artistById(root!.querySelector<HTMLSelectElement>('#collab-artist-one')?.value ?? '');
+    const second = artistById(root!.querySelector<HTMLSelectElement>('#collab-artist-two')?.value ?? '');
+    if (!title || !first || !second || first.id === second.id) return announce('Add a title and choose two different artists.');
+    if (!isActiveArtist(first) || !isActiveArtist(second)) return announce('Both artists need active contracts.');
+    if (save.cash < 300) return announce('Not enough cash for a collaboration session.');
+    save.cash -= 300;
+    const quality = Math.min(100, 52 + save.studioLevel * 7 + Math.floor((first.level + second.level) * 2.5) + 12);
+    const track = createTrack('track-' + Date.now(), title, first, quality);
+    track.collaborators = [second.id];
+    track.royaltyPercent = Math.min(50, Math.round(((first.royaltyPercent ?? 0) + (second.royaltyPercent ?? 0)) / 2));
+    save.tracks.push(track);
+    first.collaborations = (first.collaborations ?? 0) + 1;
+    second.collaborations = (second.collaborations ?? 0) + 1;
+    commit(); ping(); announce('Collaboration recorded! ' + first.name + ' feat. ' + second.name + ' is ready to release.'); render(); return;
+  }
+  if (action === 'concert') {
+    const artist = artistById(root!.querySelector<HTMLSelectElement>('#concert-artist')?.value ?? '');
+    const tier = target.dataset.tier ?? '';
+    if (!artist || !isActiveArtist(artist)) return announce('Choose an artist with an active contract.');
+    const show = launchConcert(save, artist, tier);
+    if (!show) return announce('That show is unavailable. Check your cash and artist cooldown.');
+    commit(); ping();
+    if (settings.notificationsEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification('Soundhouse Live', { body: artist.name + ' performed to ' + show.attendance.toLocaleString() + ' fans. Net earnings: ' + money(show.profit) + '.' });
+    }
+    announce(artist.name + ' performed at ' + show.venue + '! ' + show.attendance.toLocaleString() + ' fans attended.'); render(); return;
+  }
+  if (action === 'request-notifications') {
+    if (!('Notification' in window)) return announce('Browser notifications are not supported here.');
+    void Notification.requestPermission().then(permission => {
+      settings.notificationsEnabled = permission === 'granted'; saveSettings(settings); render();
+      announce(permission === 'granted' ? 'Notifications enabled.' : 'Notification permission was not granted.');
+    }); return;
+  }
+  if (action === 'reset-settings') {
+    settings = loadSettings(true); applySettings(settings); saveSettings(settings); stopMusic(); render(); announce('Settings restored to defaults.'); return;
   }
   if (action === 'claim-milestone') {
     const id = target.dataset.id ?? '';
