@@ -254,18 +254,37 @@ function handleAction(action: string, target: HTMLElement): void {
   }
 }
 root.addEventListener('click', event => {
+  if (settings.musicEnabled) startMusic();
+  const accentTarget = (event.target as HTMLElement).closest<HTMLElement>('[data-setting-accent]');
+  if (accentTarget?.dataset.settingAccent) {
+    settings.accent = accentTarget.dataset.settingAccent as GameSettings['accent'];
+    applySettings(settings); saveSettings(settings); render(); return;
+  }
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-tab], [data-action]');
   if (!target) return;
   if (target.dataset.tab) { event.preventDefault(); tab = target.dataset.tab as GameTab; render(); return; }
   if (target.dataset.action) handleAction(target.dataset.action, target);
 });
 root.addEventListener('change', async event => {
-  const target = event.target as HTMLInputElement;
-  if (target.id !== 'save-import' || !target.files?.[0]) return;
+  const target = event.target as HTMLInputElement | HTMLSelectElement;
+  if (target.dataset.setting) {
+    const key = target.dataset.setting as keyof GameSettings;
+    if (key === 'theme') settings.theme = target.value as GameSettings['theme'];
+    else if (key === 'customAccent') settings.customAccent = target.value;
+    else if (key === 'fontScale') settings.fontScale = Number(target.value) as GameSettings['fontScale'];
+    else if (target instanceof HTMLInputElement && target.type === 'checkbox') (settings as unknown as Record<string, unknown>)[key] = target.checked;
+    else if (target instanceof HTMLInputElement && target.type === 'range') (settings as unknown as Record<string, unknown>)[key] = Number(target.value);
+    applySettings(settings); saveSettings(settings);
+    if (key === 'musicEnabled') settings.musicEnabled ? startMusic() : stopMusic();
+    if (tab === 'settings') render();
+    return;
+  }
+  if (target.id !== 'save-import' || !(target instanceof HTMLInputElement) || !target.files?.[0]) return;
   try { save = await importSave(target.files[0]); tab = 'overview'; commit(); announce('Save imported successfully. Welcome back!'); render(); }
   catch (error) { announce(error instanceof Error ? error.message : 'Could not import that save file.'); }
 });
 render();
+if (settings.musicEnabled) root.addEventListener('pointerdown', () => startMusic(), { once: true });
 if (offlineSeconds > 0) persistSave(save);
 window.setInterval(() => { const reward = claimWeeklyChart(save); if (reward > 0) notice = 'Weekly chart rewards collected: ' + money(reward) + '!'; tick(save, 1); commit(); }, 1000);
 window.addEventListener('pagehide', () => persistSave(save));
