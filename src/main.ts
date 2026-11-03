@@ -146,6 +146,11 @@ function render(): void {
   // Game controls are never form submissions. Explicit types prevent mobile browsers
   // from treating dynamically rendered buttons as submit controls.
   root!.querySelectorAll<HTMLButtonElement>('button:not([type])').forEach(button => { button.type = 'button'; });
+  const mobileNav = root!.querySelector<HTMLElement>('.mobile-nav');
+  const activeMobileNavItem = mobileNav?.querySelector<HTMLElement>('.nav-item.active');
+  if (mobileNav && activeMobileNavItem) {
+    mobileNav.scrollLeft = Math.max(0, activeMobileNavItem.offsetLeft - (mobileNav.clientWidth - activeMobileNavItem.clientWidth) / 2);
+  }
   if (tab === 'settings' && isAndroidApp) {
     const status = root!.querySelector<HTMLElement>('#web-play-sync-status');
     if (status) void WebPlaySync.getStatus().then(info => {
