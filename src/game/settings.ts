@@ -14,7 +14,7 @@ export function saveSettings(value:GameSettings):void {localStorage.setItem(KEY,
 export function applySettings(value:GameSettings):void {
  const root=document.documentElement;
  root.dataset.theme=value.theme;root.dataset.accent=value.accent;
- root.style.setProperty('--user-accent',value.customAccent);
+ const accents={violet:'#b69aff',blue:'#79b9ff',rose:'#ff91b8',mint:'#74d9a5',amber:'#ffc36f'};root.style.setProperty('--user-accent',value.customAccent && value.accent==='violet' && value.customAccent!=='#b69aff'?value.customAccent:accents[value.accent]);
  root.style.setProperty('--font-scale',String(value.fontScale));
  root.classList.toggle('compact-layout',value.compactLayout);
  root.classList.toggle('reduce-motion',value.reducedMotion);
