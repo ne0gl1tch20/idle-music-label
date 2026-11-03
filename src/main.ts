@@ -1,6 +1,6 @@
 import './style.css';
 import type { GameSave, GameTab, Artist } from './game/types';
-import { artistCost, createArtist, createTrack, incomePerSecond, marketingCost, RECORDING_COST, RELEASE_COST, releaseTrack, studioCost, tick } from './game/economy';
+import { artistCost, artistTrainingCost, createArtist, createTrack, incomePerSecond, marketingCost, RECORDING_COST, RELEASE_COST, releaseTrack, studioCost, tick } from './game/economy';
 import { exportSave, importSave, loadSave, persistSave, resetSave } from './game/storage';
 
 const root = document.querySelector<HTMLDivElement>('#app');
@@ -49,7 +49,7 @@ function overview(): string {
 const artistNames = ['Mika Sol','Neon June','Kai Rivers','Luna Bloom','The Paper Satellites','Echo Park'];
 const genres = ['Indie pop','Electronic','R&B','Alternative','Bedroom pop','Lo-fi'];
 function artistsPage(): string {
-  const roster = save.artists.length ? save.artists.map(artist => `<article class="roster-card"><div class="artist-avatar">${escapeHtml(artist.name.slice(0,1))}</div><div class="roster-info"><span class="eyebrow">SIGNED ARTIST · LEVEL ${artist.level}</span><h3>${escapeHtml(artist.name)}</h3><p>${escapeHtml(artist.genre)} · ${compact(artist.fans)} fans</p></div><span class="signed-pill">SIGNED</span></article>`).join('') : '<div class="empty-state"><span>♬</span><b>Your roster is empty.</b><p>Every great label starts by discovering one great artist.</p></div>';
+  const roster = save.artists.length ? save.artists.map(artist => `<article class="roster-card"><div class="artist-avatar">${escapeHtml(artist.name.slice(0,1))}</div><div class="roster-info"><span class="eyebrow">SIGNED ARTIST · LEVEL ${artist.level}</span><h3>${escapeHtml(artist.name)}</h3><p>${escapeHtml(artist.genre)} · ${compact(artist.fans)} fans</p></div><button class="train-btn" data-action="train" data-id="${artist.id}" title="Train artist · ${money(artistTrainingCost(artist.level))}">Train ↗</button></article>`).join('') : '<div class="empty-state"><span>♬</span><b>Your roster is empty.</b><p>Every great label starts by discovering one great artist.</p></div>';
   const index = save.artists.length % artistNames.length, cost = artistCost(save.artists.length);
   return `<section class="feature-row"><div><span class="eyebrow">TALENT SCOUTING</span><h2>Discover fresh talent.</h2><p>Sign an artist to unlock new music and grow your label's earning potential.</p></div><div class="scout-card"><span class="artist-avatar large">${artistNames[index].slice(0,1)}</span><span class="eyebrow">UPCOMING ARTIST</span><h3>${artistNames[index]}</h3><p>${genres[index]}</p><button class="primary-btn" data-action="recruit" ${save.cash < cost ? 'disabled' : ''}>Sign artist · ${money(cost)}</button></div></section><div class="section-heading"><div><span class="eyebrow">YOUR TALENT</span><h2>Artist roster <small class="count-pill">${save.artists.length}</small></h2></div></div><section class="roster-list">${roster}</section>`;
 }
@@ -82,6 +82,14 @@ function handleAction(action: string, target: HTMLElement): void {
     const index = save.artists.length % artistNames.length; save.cash -= cost;
     save.artists.push(createArtist(`artist-${Date.now()}`, artistNames[index], genres[index]));
     ping(); commit(); announce(`${artistNames[index]} has joined your label!`); return;
+  }
+  if (action === 'train') {
+    const artist = save.artists.find(item => item.id === target.dataset.id);
+    if (!artist) return;
+    const cost = artistTrainingCost(artist.level);
+    if (save.cash < cost) return announce('Not enough cash to train this artist.');
+    save.cash -= cost; artist.level += 1; artist.fans += 120;
+    ping(); commit(); announce(`${artist.name} finished training and reached level ${artist.level}!`); render(); return;
   }
   if (action === 'studio') {
     const cost = studioCost(save.studioLevel); if (save.cash < cost) return announce('Not enough cash for this upgrade.');
