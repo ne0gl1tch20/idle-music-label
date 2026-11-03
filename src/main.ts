@@ -1,60 +1,27 @@
 import './style.css'
-import heroImg from './assets/hero.png'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.ts'
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
-
-<div class="ticks"></div>
-
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
-
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
-
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+type Save = { cash:number; fans:number; streams:number; studio:number; marketing:number; tracks:number; reputation:number }
+const key='idle-music-label.save.v1'
+const defaults:Save={cash:250,fans:120,streams:0,studio:1,marketing:0,tracks:0,reputation:1}
+let save:Save
+try { save={...defaults,...JSON.parse(localStorage.getItem(key)??'{}') as Partial<Save>} } catch { save={...defaults} }
+let tab='overview'
+const root=document.querySelector<HTMLDivElement>('#app')
+if(!root) throw new Error('Missing app root')
+const income=()=>save.studio*1.5+save.marketing*2.25+save.tracks*1.2
+const cash=(n:number)=>'$'+Math.floor(n).toLocaleString('en-US')
+const compact=(n:number)=>Intl.NumberFormat('en',{notation:'compact',maximumFractionDigits:1}).format(Math.floor(n))
+const saveGame=()=>localStorage.setItem(key,JSON.stringify(save))
+function render(){
+ const studioCost=Math.floor(150*1.65**(save.studio-1)), marketingCost=Math.floor(220*1.8**save.marketing)
+ root!.innerHTML=`<div class="layout"><aside><div class="brand"><b>♫</b><span>SOUNDHOUSE<small>INDEPENDENT LABEL</small></span></div><label>WORKSPACE</label><nav><button data-tab="overview" class="${tab==='overview'?'active':''}">◫ &nbsp; Overview</button><button data-tab="studio" class="${tab==='studio'?'active':''}">♫ &nbsp; Studio</button><button data-tab="releases" class="${tab==='releases'?'active':''}">▣ &nbsp; Releases</button></nav><div class="side-foot"><i></i> LABEL STATUS<strong>Independent</strong><small>Your label, your sound.</small></div></aside><main><header><span class="mobile-brand">♫ SOUNDHOUSE</span><span class="crumb">Workspace　/　<strong>${tab}</strong></span><span class="saved">● Saved locally</span></header><div class="content"><div class="welcome"><div><small>✦ YOUR MUSIC EMPIRE STARTS HERE</small><h1>${tab==='overview'?'Build your sound.':tab==='studio'?'Make the next hit.':'Put music out there.'}</h1><p>Discover artists, create records and grow your independent label.</p></div><span class="season">✦ SEASON 01 · DAY 01</span></div><section class="stats"><article><small>AVAILABLE CASH</small><b>$${Math.floor(save.cash).toLocaleString()}</b><em>↗ ${cash(income())}/sec passive income</em></article><article><small>MONTHLY LISTENERS</small><b>${compact(save.fans)}</b><em>↗ Growing audience</em></article><article><small>TOTAL STREAMS</small><b>${compact(save.streams)}</b><em>Across all releases</em></article><article><small>LABEL REPUTATION</small><b>Lv. ${save.reputation}</b><em>Independent label</em></article></section>${tab==='overview'?overview():tab==='studio'?studio(studioCost,marketingCost):releases()}<footer>♫ SOUNDHOUSE LABEL MANAGER <span>Progress saves automatically on this device</span></footer></div></main></div>`
+ root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach(b=>b.addEventListener('click',()=>{tab=b.dataset.tab??'overview';render()}))
+ root!.querySelector('#buy-studio')?.addEventListener('click',()=>{if(save.cash<studioCost)return;save.cash-=studioCost;save.studio++;save.reputation++;saveGame();render()})
+ root!.querySelector('#buy-marketing')?.addEventListener('click',()=>{if(save.cash<marketingCost)return;save.cash-=marketingCost;save.marketing++;save.fans+=40;saveGame();render()})
+ root!.querySelector('#release')?.addEventListener('click',()=>{if(save.cash<100)return;save.cash-=100;save.tracks++;save.fans+=75;save.streams+=250;save.reputation++;saveGame();render()})
+}
+function overview(){return `<section class="feature"><div><small>✦ THE LABEL JOURNEY</small><h2>From bedroom<br>beats to big stages.</h2><p>Build your studio, release tracks and turn listeners into a loyal fanbase.</p><button data-tab="studio">Enter the studio　→</button></div><div class="vinyl"><div>♫</div></div></section><div class="section-title"><small>YOUR NEXT MOVES</small><h3>Make things happen</h3></div><section class="actions"><button data-tab="studio"><b>♫</b><span><strong>Upgrade your studio</strong><small>Improve your sound and increase income.</small></span>→</button><button data-tab="releases"><b>▣</b><span><strong>Release a new track</strong><small>Share your music with the world.</small></span>→</button></section>`}
+function studio(sc:()=>number,mc:()=>number){return `<div class="section-title"><small>PRODUCTION DEPARTMENT</small><h3>Your studio setup</h3><p>Better equipment means better music and stronger revenue.</p></div><section class="upgrades"><article><div class="art">♫</div><div class="upgrade"><small>PRODUCTION　·　LEVEL ${save.studio}</small><h3>Home Studio</h3><p>Upgrade your recording gear, mixing desk and sound quality.</p><div><strong>${cash(sc())}</strong><button id="buy-studio" ${save.cash<sc()?'disabled':''}>Upgrade ↗</button></div></div></article><article><div class="art pink">◉</div><div class="upgrade"><small>PROMOTION　·　LEVEL ${save.marketing}</small><h3>Marketing Team</h3><p>Reach new listeners through campaigns and social buzz.</p><div><strong>${cash(mc())}</strong><button id="buy-marketing" ${save.cash<mc()?'disabled':''}>Upgrade ↗</button></div></div></article></section>`}
+function releases(){return `<div class="section-title"><small>DISTRIBUTION</small><h3>Your discography</h3><p>Release tracks to grow your audience and unlock more revenue.</p></div><section class="release"><div class="record">♫</div><div><small>READY FOR THE WORLD</small><h3>Drop your next single.</h3><p>Every release brings new fans, streams and opportunities.</p></div><div class="reward"><span>RELEASE COST<strong>$100</strong></span><span>FAN REWARD<strong>+75 fans</strong></span><span>STREAM BONUS<strong>+250</strong></span><button id="release" ${save.cash<100?'disabled':''}>Release track →</button></div></section><div class="section-title"><small>THE CATALOG</small><h3>Released music</h3></div>${save.tracks?Array.from({length:save.tracks},(_,i)=>`<div class="track">♫　<strong>Untitled Track #${i+1}</strong><span>LIVE</span></div>`).join(''):'<div class="empty">♫<strong>Your catalog is waiting.</strong><p>Release your first track to start building a discography.</p></div>'}`}
+render()
+window.setInterval(()=>{save.cash+=income();save.streams+=Math.max(1,save.tracks*2);save.fans+=Math.floor(save.marketing*.15);saveGame();render()},1000)
