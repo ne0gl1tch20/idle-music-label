@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Soundhouse Web Play release manifest",
+  "type": "object",
+  "required": ["format", "formatVersion", "version", "bundle", "sha256", "commit"],
+  "properties": {
+    "format": { "const": "soundhouse-web-play" },
+    "formatVersion": { "const": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "bundle": { "const": "web-play.zip" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "minLength": 7 }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,65 @@
+name: Publish Web Play bundle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: web-play-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build website and game
+        run: npm run build
+
+      - name: Package Web Play bundle
+        id: bundle
+        shell: bash
+        run: |
+          cd dist
+          zip -qr ../web-play.zip .
+          cd ..
+          SHA256="$(sha256sum web-play.zip | cut -d ' ' -f 1)"
+          cat > web-play-manifest.json <<EOF
+          {
+            "format": "soundhouse-web-play",
+            "formatVersion": 1,
+            "version": "${GITHUB_SHA}",
+            "bundle": "web-play.zip",
+            "sha256": "${SHA256}",
+            "commit": "${GITHUB_SHA}"
+          }
+          EOF
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish repository Web Play release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: web-play
+          name: Soundhouse Web Play
+          target_commitish: main
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: |
+            web-play.zip
+            web-play-manifest.json

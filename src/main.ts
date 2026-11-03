@@ -1,4 +1,5 @@
 import './style.css';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { GameTab, Artist } from './game/types';
 import { contractRenewalCost, isContractActive, renewContract } from './game/contracts';
 import { launchConcert } from './game/concerts';
@@ -9,7 +10,13 @@ import { exportSave, importSave, loadSave, persistSave, resetSave } from './game
 import { rankings, timeToChart, claimWeeklyChart } from './game/charts';
 import { MILESTONES, milestoneProgress, claimMilestone } from './game/milestones';
 import { PROMOTION_TIERS, PROMOTION_COOLDOWN, applyPromotion } from './game/promotions';
-
+interface WebViewBridge { setServerBasePath(options: { path: string }): Promise<void>; persistServerBasePath(): Promise<void>; }
+const WebView = registerPlugin<WebViewBridge>('WebView');
+interface WebPlaySyncBridge { checkAndSync(): Promise<{ updated: boolean; version: string; message: string; basePath?: string }>; getStatus(): Promise<{ version: string; syncedAt: number; hasSynced: boolean }>; }
+const WebPlaySync = registerPlugin<WebPlaySyncBridge>('WebPlaySync');
+interface AppUpdateBridge { checkForUpdate(): Promise<{ updateAvailable: boolean; currentVersion?: string; latestVersion?: string; releaseUrl?: string; apkUrl?: string; message?: string }>; openReleasePage(options: { url: string }): Promise<void>; }
+const AppUpdate = registerPlugin<AppUpdateBridge>('AppUpdate');
+const isAndroidApp = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('Missing app root');
 let { save, offlineSeconds } = loadSave();
@@ -115,8 +122,16 @@ function labelPage(): string {
   return `<section class="office-panel"><span class="eyebrow">LABEL MANAGEMENT</span><h2>Keep your progress safe.</h2><p>Your save lives on this device. Export a backup before clearing browser data or moving to another device.</p><div class="office-actions"><button class="primary-btn" data-action="export">↓ Export save file</button><button class="secondary-btn" data-action="import">↑ Import save file</button><input id="save-import" type="file" accept="application/json,.json" hidden></div></section><section class="office-panel danger-panel"><span class="eyebrow">START FRESH</span><h2>Reset your label</h2><p>This permanently replaces your current local save with a new label. Export a backup first if you want to keep your progress.</p><button class="danger-btn" data-action="reset">Reset all progress</button></section><section class="office-panel"><span class="eyebrow">ABOUT THIS GAME</span><h2>Soundhouse Label Manager</h2><p>An offline-first idle music label game. No account, analytics or forced ads. Your save stays in your browser or app storage.</p><div class="about-meta"><span>GAME VERSION <b>0.2.0</b></span><span>SAVE FORMAT <b>v2</b></span></div></section>`;
 }
 function render(): void {
-  const content = ({ overview, artists: artistsPage, studio: studioPage, releases: releasesPage, charts: chartsPage, milestones: milestonesPage, contracts: () => contractsPage(save), concerts: () => concertsPage(save), settings: () => settingsPage(settings), label: labelPage })[tab]();
+  const content = ({ overview, artists: artistsPage, studio: studioPage, releases: releasesPage, charts: chartsPage, milestones: milestonesPage, contracts: () => contractsPage(save), concerts: () => concertsPage(save), settings: () => settingsPage(settings, isAndroidApp), label: labelPage })[tab]();
   root!.innerHTML = shell(content);
+  if (tab === 'settings' && isAndroidApp) {
+    const status = root!.querySelector<HTMLElement>('#web-play-sync-status');
+    if (status) void WebPlaySync.getStatus().then(info => {
+      status.textContent = info.hasSynced
+        ? 'Synced repository version: ' + info.version + (info.syncedAt ? ' · ' + new Date(info.syncedAt).toLocaleString() : '')
+        : 'No repository bundle synced yet. The app is using its bundled Web Play version.';
+    }).catch(() => { if (status) status.textContent = 'Sync status is currently unavailable.'; });
+  }
 }
 function refreshLiveStats(): void {
   const cash = root!.querySelector('#cash-stat'); if (cash) cash.textContent = money(save.cash);
@@ -174,6 +189,40 @@ function handleAction(action: string, target: HTMLElement): void {
     if (!milestone || !claimMilestone(save, id)) return announce('That milestone is not ready to claim.');
     commit(); ping(); announce('Milestone unlocked! You earned ' + money(milestone.rewardCash) + ' and ' + compact(milestone.rewardFans) + ' fans.'); render(); return;
   }
+  if (action === 'sync-web-play') {
+    if (!isAndroidApp) return;
+    const status = root!.querySelector<HTMLElement>('#web-play-sync-status');
+    const button = target as HTMLButtonElement;
+    button.disabled = true; button.textContent = 'Checking repository…';
+    if (status) status.textContent = 'Checking the latest Web Play release…';
+    void WebPlaySync.checkAndSync().then(async result => {
+      if (status) status.textContent = result.message + ' · ' + result.version;
+      if (result.updated && result.basePath) {
+        await WebView.setServerBasePath({ path: result.basePath });
+        await WebView.persistServerBasePath();
+        announce('Web Play updated. Restarting the game with the new repository bundle…');
+        window.setTimeout(() => window.location.reload(), 250);
+      } else {
+        announce(result.message);
+        button.disabled = false; button.textContent = 'Check & sync Web Play ↻';
+      }
+    }).catch(error => {
+      const message = error instanceof Error ? error.message : 'Web Play sync failed.';
+      if (status) status.textContent = message;
+      announce(message); button.disabled = false; button.textContent = 'Retry Web Play sync ↻';
+    });
+    return;
+  }
+  if (action === 'check-app-update') {
+    if (!isAndroidApp) return;
+    void AppUpdate.checkForUpdate().then(async result => {
+      if (!result.updateAvailable) { announce(result.message || 'You are already using the latest published version.'); return; }
+      const destination = result.apkUrl || result.releaseUrl || 'https://github.com/ne0gl1tch20/idle-music-label/releases';
+      announce('Soundhouse ' + (result.latestVersion || '') + ' is available. Opening the official download page.');
+      await AppUpdate.openReleasePage({ url: destination });
+    }).catch(error => announce(error instanceof Error ? error.message : 'Could not check for app updates.'));
+    return;
+  }
   if (action === 'export') { exportSave(save); announce('Save backup exported. Keep that file somewhere safe!'); return; }
   if (action === 'import') { root!.querySelector<HTMLInputElement>('#save-import')?.click(); return; }
   if (action === 'reset') {
@@ -197,6 +246,19 @@ root.addEventListener('change', async event => {
   catch (error) { announce(error instanceof Error ? error.message : 'Could not import that save file.'); }
 });
 render();
+// Android mirrors the GuessTheNumber flow: check the repository Web Play manifest at startup,
+// download only when its published bundle version differs, then activate the verified cache.
+if (isAndroidApp) {
+  void WebPlaySync.checkAndSync().then(async result => {
+    if (result.updated && result.basePath) {
+      await WebView.setServerBasePath({ path: result.basePath });
+      await WebView.persistServerBasePath();
+      window.location.reload();
+    }
+  }).catch(() => {
+    // Keep the bundled or previously synced version when offline or when GitHub is unavailable.
+  });
+}
 if(settings.musicEnabled)root.addEventListener('pointerdown',()=>startMusic(),{once:true});
 if (offlineSeconds > 0) persistSave(save);
 window.setInterval(() => { const reward = claimWeeklyChart(save); if (reward > 0) notice = 'Weekly chart rewards collected: ' + money(reward) + '!'; tick(save, 1); commit(); }, 1000);

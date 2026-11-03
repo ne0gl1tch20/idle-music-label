@@ -3,14 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#100f16" />
-    <meta name="description" content="Build your own independent music label. Discover artists, record tracks and grow your music empire." />
-    <title>Soundhouse · Idle Music Label</title>
+    <meta name="theme-color" content="#100e17" />
+    <meta name="description" content="Build an independent music label. Sign artists, release tracks and climb the charts in Soundhouse." />
+    <title>Soundhouse · Build Your Music Label</title>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-    <script type="module" src="/src/phase-9-10.ts"></script>
-    <script type="module" src="/src/interaction-fix.ts"></script>
+    <div class="site-shell">
+      <header class="site-header">
+        <a class="site-brand" href="./"><span class="brand-symbol">♫</span><span>SOUNDHOUSE</span></a>
+        <nav class="site-nav"><a href="#features">Features</a><a href="#how-to-play">How to play</a><a href="https://github.com/ne0gl1tch20/idle-music-label">Source code</a></nav>
+        <a class="header-cta" href="./play.html">Play now <span>↗</span></a>
+      </header>
+      <main>
+        <section class="hero">
+          <div>
+            <span class="eyebrow">✦ YOUR LABEL. YOUR SOUND.</span>
+            <h1>Make music.<br><span>Build an empire.</span></h1>
+            <p class="hero-copy">Start with a tiny independent label. Discover new artists, record the next hit, grow your audience and take your music all the way to the charts.</p>
+            <div class="hero-actions"><a class="play-cta" href="./play.html">▶ <span>Play instantly</span> <b>→</b></a><a class="text-link" href="#features">Explore the features ↓</a></div>
+            <p class="hero-note">Free to play · No account · Your progress saves on your device</p>
+          </div>
+          <div class="hero-art" aria-label="Decorative vinyl record artwork">
+            <div class="orbit"></div><div class="record"><span class="record-label"></span></div>
+            <div class="float-card card-top"><small><span class="pulse"></span> LABEL MOMENTUM</small><strong>On the rise ↗</strong></div>
+            <div class="float-card card-bottom"><small>YOUR NEXT RELEASE</small><strong>Starts with a song ♫</strong></div>
+          </div>
+        </section>
+        <section class="section" id="features">
+          <div class="section-head"><span class="eyebrow">THE MUSIC BUSINESS, YOUR WAY</span><h2>Every great label starts somewhere.</h2><p>Build a roster, turn ideas into releases and make decisions that shape your independent music company.</p></div>
+          <div class="feature-grid">
+            <article class="feature"><span class="feature-icon">♬</span><h3>Discover artists</h3><p>Scout new talent, sign contracts and train artists as your label grows.</p></article>
+            <article class="feature"><span class="feature-icon">◉</span><h3>Release music</h3><p>Record singles, invest in promotion and build a catalog that keeps earning.</p></article>
+            <article class="feature"><span class="feature-icon">♛</span><h3>Reach the charts</h3><p>Compete in weekly rankings, collect rewards and grow your reputation.</p></article>
+          </div>
+        </section>
+        <section class="play-panel" id="how-to-play"><span class="eyebrow">YOUR LABEL IS WAITING</span><h2>Ready to make some noise?</h2><p>Jump straight into the full game. No signup, no launcher and no separate download needed to play on the web.</p><a class="play-cta" href="./play.html">▶ Play Soundhouse now <b>→</b></a></section>
+      </main>
+      <footer class="site-footer"><span>♫ SOUNDHOUSE · IDLE MUSIC LABEL</span><span>Made for independent music dreamers.</span><a href="https://github.com/ne0gl1tch20/idle-music-label">Open source on GitHub ↗</a></footer>
+    </div>
+    <script type="module" src="./src/landing.ts"></script>
   </body>
 </html>
