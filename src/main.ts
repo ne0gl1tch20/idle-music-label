@@ -11,6 +11,7 @@ let tab: GameTab = 'overview';
 let notice = offlineSeconds > 0 ? `Welcome back! Your label earned ${money(incomePerSecond(save) * offlineSeconds)} while you were away.` : '';
 let noticeTimer = 0;
 let audioContext: AudioContext | null = null;
+timeToChart();
 
 function money(value: number): string { return '$' + Math.floor(value).toLocaleString('en-US'); }
 function compact(value: number): string { return Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(Math.floor(value)); }
