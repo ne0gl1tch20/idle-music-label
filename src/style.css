@@ -52,9 +52,7 @@ button:active{transform:scale(.97)}
 @media(max-width:650px){.promo-actions{grid-template-columns:1fr 1fr}.promo-actions .promo-btn:last-child{grid-column:1/-1}.promo-summary{align-items:flex-start;flex-direction:column}}
 
 
-/* Cross-device sync code */
-.sync-code{display:block;width:100%;min-height:112px;resize:vertical;margin:16px 0;padding:14px;border:1px solid var(--line,#393342);border-radius:12px;background:var(--surface-2,#17141e);color:var(--text,#f5f0fb);font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
-.sync-code:focus{outline:2px solid var(--user-accent);outline-offset:2px}
-.settings-panel .office-actions{display:flex;gap:10px;flex-wrap:wrap}
-.settings-panel .form-hint{display:block;margin-top:12px}
-@media(max-width:520px){.settings-panel .office-actions>*{flex:1 1 100%}}
+
+/* Android repository Web Play sync */
+.sync-status{margin:14px 0;padding:12px 14px;border:1px solid var(--line,#393342);border-radius:12px;background:var(--surface-2,#17141e);color:var(--muted,#aaa);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.settings-panel [data-action="sync-web-play"]{min-height:46px}
