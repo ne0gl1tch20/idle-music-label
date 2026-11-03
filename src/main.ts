@@ -1,5 +1,8 @@
 import './style.css';
 import type { GameTab, Artist } from './game/types';
+import { contractRenewalCost, isContractActive, renewContract } from './game/contracts';
+import { CONCERT_TIERS, concertQuote, launchConcert } from './game/concerts';
+import { loadSettings, saveSettings, applySettings, type GameSettings } from './game/settings';
 import { artistCost, artistTrainingCost, createArtist, createTrack, incomePerSecond, marketingCost, RECORDING_COST, RELEASE_COST, releaseTrack, studioCost, tick } from './game/economy';
 import { exportSave, importSave, loadSave, persistSave, resetSave } from './game/storage';
 import { rankings, timeToChart, claimWeeklyChart } from './game/charts';
@@ -12,6 +15,10 @@ let tab: GameTab = 'overview';
 let notice = offlineSeconds > 0 ? `Welcome back! Your label earned ${money(incomePerSecond(save) * offlineSeconds)} while you were away.` : '';
 let noticeTimer = 0;
 let audioContext: AudioContext | null = null;
+let settings: GameSettings = loadSettings();
+applySettings(settings);
+let musicOscillators: OscillatorNode[] = [];
+let musicGain: GainNode | null = null;
 timeToChart();
 
 function money(value: number): string { return '$' + Math.floor(value).toLocaleString('en-US'); }
@@ -19,17 +26,22 @@ function compact(value: number): string { return Intl.NumberFormat('en', { notat
 function escapeHtml(value: string): string { return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char); }
 function artistById(id: string): Artist | undefined { return save.artists.find(artist => artist.id === id); }
 function ping(): void {
+  if (!settings.soundEnabled) return;
   try {
     audioContext ??= new AudioContext();
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
     oscillator.type = 'sine'; oscillator.frequency.value = 660;
-    gain.gain.setValueAtTime(0.045, audioContext.currentTime);
+    gain.gain.setValueAtTime(0.045 * settings.masterVolume * settings.sfxVolume, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
     oscillator.connect(gain); gain.connect(audioContext.destination);
     oscillator.start(); oscillator.stop(audioContext.currentTime + 0.08);
   } catch { /* Optional audio never blocks gameplay. */ }
 }
+function startMusic():void{if(!settings.musicEnabled||musicOscillators.length)return;try{audioContext??=new AudioContext();if(audioContext.state==='suspended')void audioContext.resume();musicGain=audioContext.createGain();musicGain.gain.value=.012*settings.masterVolume;musicGain.connect(audioContext.destination);[110,164.81,220].forEach((hz,i)=>{const o=audioContext!.createOscillator();o.type=i===1?'sine':'triangle';o.frequency.value=hz;o.connect(musicGain!);o.start();musicOscillators.push(o);});}catch{/* optional audio */}}
+function stopMusic():void{musicOscillators.forEach(o=>{try{o.stop();}catch{/* stopped */}});musicOscillators=[];musicGain?.disconnect();musicGain=null;}
+function activeArtist(a:Artist):boolean{return isContractActive(a);}
+function contractLabel(a:Artist):string{return !a.contractEndsAt?'LEGACY DEAL':activeArtist(a)?'ACTIVE · '+Math.max(1,Math.ceil((a.contractEndsAt-Date.now())/86400000))+' DAYS LEFT':'CONTRACT EXPIRED';}
 function announce(message: string): void {
   notice = message; window.clearTimeout(noticeTimer); render();
   noticeTimer = window.setTimeout(() => { notice = ''; render(); }, 4200);
@@ -40,10 +52,10 @@ function navButton(id: GameTab, label: string, symbol: string): string {
 function stat(label: string, value: string, detail: string, id: string): string {
   return `<article class="stat-card"><span>${label}</span><strong id="${id}">${value}</strong><small>${detail}</small></article>`;
 }
-function heading(): string { return ({ overview: 'Build your sound.', artists: 'Find your next star.', studio: 'Make the next hit.', releases: 'Put music out there.', charts: 'Climb the charts.', milestones: 'Celebrate every milestone.', label: 'Run the business.' })[tab]; }
-function subheading(): string { return ({ overview: 'Turn a tiny independent label into a music powerhouse.', artists: 'Sign artists, discover genres and grow your creative roster.', studio: 'Invest in better equipment and make every release count.', releases: 'Produce singles, launch them and build your catalog.', charts: 'Track your biggest songs and collect weekly chart rewards.', milestones: 'Complete label goals and claim one-time rewards.', label: 'Keep your label healthy and protect your progress.' })[tab]; }
+function heading(): string { return ({ overview: 'Build your sound.', artists: 'Find your next star.', studio: 'Make the next hit.', releases: 'Put music out there.', charts: 'Climb the charts.', milestones: 'Celebrate every milestone.', contracts: 'Build lasting partnerships.', concerts: 'Take the music live.', settings: 'Make it yours.', label: 'Run the business.' })[tab]; }
+function subheading(): string { return ({ overview: 'Turn a tiny independent label into a music powerhouse.', artists: 'Sign artists, discover genres and grow your creative roster.', studio: 'Invest in better equipment and make every release count.', releases: 'Produce singles, launch them and build your catalog.', charts: 'Track your biggest songs and collect weekly chart rewards.', milestones: 'Complete label goals and claim one-time rewards.', contracts: 'Renew artist deals and create collaborations.', concerts: 'Book shows, sell tickets and grow your audience.', settings: 'Customize the look, sound and feel of your label office.', label: 'Keep your label healthy and protect your progress.' })[tab]; }
 function shell(content: string): string {
-  return `<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-tab="overview"><span class="brand-mark">♫</span><span>SOUNDHOUSE<small>INDEPENDENT LABEL</small></span></a><div class="nav-caption">MANAGEMENT</div><nav>${navButton('overview', 'Dashboard', '▦')}${navButton('artists', 'Artists', '♬')}${navButton('studio', 'Studio', '⌘')}${navButton('releases', 'Releases', '◉')}${navButton('charts', 'Charts', '♛')}${navButton('milestones', 'Milestones', '✦')}${navButton('label', 'Label office', '▤')}</nav><div class="sidebar-bottom"><span class="online-dot"></span> LABEL STATUS<strong>Independent</strong><small>Built from the ground up.</small></div></aside><main class="main-area"><header class="topbar"><span class="mobile-brand">♫ SOUNDHOUSE</span><span class="breadcrumb">LABEL OFFICE <b>/</b> ${tab.toUpperCase()}</span><span class="save-status"><i></i> Saved on this device</span></header><div class="page"><section class="page-heading"><div><span class="eyebrow">✦ YOUR INDEPENDENT MUSIC EMPIRE</span><h1>${heading()}</h1><p>${subheading()}</p></div><span class="day-chip">✦ INDEPENDENT LABEL · LIVE</span></section><section class="stats-grid">${stat('AVAILABLE CASH', money(save.cash), `+${money(incomePerSecond(save))} / second`, 'cash-stat')}${stat('MONTHLY LISTENERS', compact(save.fans), 'Your growing fanbase', 'fans-stat')}${stat('TOTAL STREAMS', compact(save.totalStreams), 'Across your catalog', 'streams-stat')}${stat('LABEL REPUTATION', 'LEVEL ' + save.reputation, 'Earned through releases', 'rep-stat')}</section>${notice ? `<div class="notice" role="status">✦ ${escapeHtml(notice)}</div>` : ''}${content}<footer>♫ SOUNDHOUSE LABEL MANAGER <span>Progress saves automatically · Offline earnings capped at 8 hours</span></footer></div></main></div>`;
+  return `<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-tab="overview"><span class="brand-mark">♫</span><span>SOUNDHOUSE<small>INDEPENDENT LABEL</small></span></a><div class="nav-caption">MANAGEMENT</div><nav>${navButton('overview', 'Dashboard', '▦')}${navButton('artists', 'Artists', '♬')}${navButton('studio', 'Studio', '⌘')}${navButton('releases', 'Releases', '◉')}${navButton('charts', 'Charts', '♛')}${navButton('milestones', 'Milestones', '✦')}${navButton('contracts', 'Contracts', '♧')}${navButton('concerts', 'Concerts', '♫')}${navButton('settings', 'Settings', '⚙')}${navButton('label', 'Label office', '▤')}</nav><div class="sidebar-bottom"><span class="online-dot"></span> LABEL STATUS<strong>Independent</strong><small>Built from the ground up.</small></div></aside><main class="main-area"><header class="topbar"><span class="mobile-brand">♫ SOUNDHOUSE</span><span class="breadcrumb">LABEL OFFICE <b>/</b> ${tab.toUpperCase()}</span><span class="save-status"><i></i> Saved on this device</span></header><div class="page"><section class="page-heading"><div><span class="eyebrow">✦ YOUR INDEPENDENT MUSIC EMPIRE</span><h1>${heading()}</h1><p>${subheading()}</p></div><span class="day-chip">✦ INDEPENDENT LABEL · LIVE</span></section><section class="stats-grid">${stat('AVAILABLE CASH', money(save.cash), `+${money(incomePerSecond(save))} / second`, 'cash-stat')}${stat('MONTHLY LISTENERS', compact(save.fans), 'Your growing fanbase', 'fans-stat')}${stat('TOTAL STREAMS', compact(save.totalStreams), 'Across your catalog', 'streams-stat')}${stat('LABEL REPUTATION', 'LEVEL ' + save.reputation, 'Earned through releases', 'rep-stat')}</section>${notice ? `<div class="notice" role="status">✦ ${escapeHtml(notice)}</div>` : ''}${content}<footer>♫ SOUNDHOUSE LABEL MANAGER <span>Progress saves automatically · Offline earnings capped at 8 hours</span></footer></div></main><nav class="mobile-nav">${navButton('overview','Home','▦')}${navButton('artists','Artists','♬')}${navButton('releases','Music','◉')}${navButton('concerts','Live','♫')}${navButton('settings','Settings','⚙')}</nav></div>`;
 }
 function overview(): string {
   const next = save.artists.length === 0 ? 'Sign your first artist' : save.tracks.some(track => !track.releasedAt) ? 'Release your first single' : 'Grow your studio';
