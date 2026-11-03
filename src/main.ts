@@ -3,6 +3,7 @@ import type { GameTab, Artist } from './game/types';
 import { contractRenewalCost, isContractActive, renewContract } from './game/contracts';
 import { CONCERT_TIERS, concertQuote, launchConcert } from './game/concerts';
 import { loadSettings, saveSettings, applySettings, type GameSettings } from './game/settings';
+import { contractsPage, concertsPage, settingsPage } from './game/industry-ui';
 import { artistCost, artistTrainingCost, createArtist, createTrack, incomePerSecond, marketingCost, RECORDING_COST, RELEASE_COST, releaseTrack, studioCost, tick } from './game/economy';
 import { exportSave, importSave, loadSave, persistSave, resetSave } from './game/storage';
 import { rankings, timeToChart, claimWeeklyChart } from './game/charts';
@@ -98,7 +99,7 @@ function labelPage(): string {
   return `<section class="office-panel"><span class="eyebrow">LABEL MANAGEMENT</span><h2>Keep your progress safe.</h2><p>Your save lives on this device. Export a backup before clearing browser data or moving to another device.</p><div class="office-actions"><button class="primary-btn" data-action="export">↓ Export save file</button><button class="secondary-btn" data-action="import">↑ Import save file</button><input id="save-import" type="file" accept="application/json,.json" hidden></div></section><section class="office-panel danger-panel"><span class="eyebrow">START FRESH</span><h2>Reset your label</h2><p>This permanently replaces your current local save with a new label. Export a backup first if you want to keep your progress.</p><button class="danger-btn" data-action="reset">Reset all progress</button></section><section class="office-panel"><span class="eyebrow">ABOUT THIS GAME</span><h2>Soundhouse Label Manager</h2><p>An offline-first idle music label game. No account, analytics or forced ads. Your save stays in your browser or app storage.</p><div class="about-meta"><span>GAME VERSION <b>0.2.0</b></span><span>SAVE FORMAT <b>v2</b></span></div></section>`;
 }
 function render(): void {
-  const content = ({ overview, artists: artistsPage, studio: studioPage, releases: releasesPage, charts: chartsPage, milestones: milestonesPage, label: labelPage })[tab]();
+  const content = ({ overview, artists: artistsPage, studio: studioPage, releases: releasesPage, charts: chartsPage, milestones: milestonesPage, contracts: () => contractsPage(save), concerts: () => concertsPage(save), settings: () => settingsPage(settings), label: labelPage })[tab]();
   root!.innerHTML = shell(content);
 }
 function refreshLiveStats(): void {
@@ -111,9 +112,13 @@ function handleAction(action: string, target: HTMLElement): void {
   if (action === 'recruit') {
     const cost = artistCost(save.artists.length); if (save.cash < cost) return announce('Not enough cash to sign this artist yet.');
     const index = save.artists.length % artistNames.length; save.cash -= cost;
-    save.artists.push(createArtist(`artist-${Date.now()}`, artistNames[index], genres[index]));
+    const artist = createArtist(`artist-${Date.now()}`, artistNames[index], genres[index]); artist.contractEndsAt = Date.now() + 28 * 86400000; artist.royaltyPercent = 20; save.artists.push(artist);
     ping(); commit(); announce(`${artistNames[index]} has joined your label!`); return;
   }
+  if (action === 'renew-contract') { const artist=artistById(target.dataset.id??''); if(!artist)return; const cost=contractRenewalCost(artist); if(save.cash<cost)return announce('Not enough cash to renew this artist.'); save.cash-=cost; renewContract(artist); commit(); ping(); announce(artist.name+' has a new 28-day deal.'); render(); return; }
+  if (action === 'collaborate') { const title=root!.querySelector<HTMLInputElement>('#collab-title')?.value.trim()??''; const first=artistById(root!.querySelector<HTMLSelectElement>('#collab-one')?.value??''); const second=artistById(root!.querySelector<HTMLSelectElement>('#collab-two')?.value??''); if(!title||!first||!second||first.id===second.id)return announce('Choose a title and two different artists.'); if(!isContractActive(first)||!isContractActive(second))return announce('Both artists need active contracts.'); if(save.cash<300)return announce('Not enough cash for a collaboration.'); save.cash-=300; const track=createTrack('track-'+Date.now(),title,first,Math.min(100,55+save.studioLevel*7+first.level*2+second.level*2)); track.collaborators=[second.id]; track.royaltyPercent=Math.min(50,Math.round(((first.royaltyPercent??20)+(second.royaltyPercent??20))/2)); save.tracks.push(track); first.collaborations=(first.collaborations??0)+1; second.collaborations=(second.collaborations??0)+1; commit(); ping(); announce(first.name+' feat. '+second.name+' recorded a collaboration!'); render(); return; }
+  if (action === 'concert') { const artist=artistById(root!.querySelector<HTMLSelectElement>('#concert-artist')?.value??''); if(!artist||!isContractActive(artist))return announce('Choose an artist with an active contract.'); const show=launchConcert(save,artist,target.dataset.tier??''); if(!show)return announce('This show is unavailable. Check your budget or artist cooldown.'); commit(); ping(); announce(artist.name+' performed at '+show.venue+' for '+show.attendance.toLocaleString()+' fans!'); render(); return; }
+  if (action === 'reset-settings') { settings=loadSettings(true); applySettings(settings); saveSettings(settings); stopMusic(); render(); announce('Settings reset to defaults.'); return; }
   if (action === 'train') {
     const artist = save.artists.find(item => item.id === target.dataset.id);
     if (!artist) return;
@@ -134,10 +139,11 @@ function handleAction(action: string, target: HTMLElement): void {
     const title = root!.querySelector<HTMLInputElement>('#track-title')?.value.trim() ?? '';
     const artist = artistById(root!.querySelector<HTMLSelectElement>('#track-artist')?.value ?? '');
     if (!title || !artist) return announce('Add a track title and choose an artist first.');
+    if (!isContractActive(artist)) return announce('Renew this artist contract before recording.');
     if (save.cash < RECORDING_COST) return announce('Not enough cash for a recording session.');
     save.cash -= RECORDING_COST;
     const quality = Math.min(100, 42 + save.studioLevel * 7 + artist.level * 3 + Math.floor(Math.random() * 13));
-    save.tracks.push(createTrack(`track-${Date.now()}`, title, artist, quality));
+    const track=createTrack(`track-${Date.now()}`, title, artist, quality); track.royaltyPercent=artist.royaltyPercent??20; save.tracks.push(track);
     ping(); commit(); announce(`"${title}" is recorded and ready for release!`); render(); return;
   }
   if (action === 'release') {
@@ -159,18 +165,22 @@ function handleAction(action: string, target: HTMLElement): void {
   }
 }
 root.addEventListener('click', event => {
+  if(settings.musicEnabled)startMusic();
+  const accent=(event.target as HTMLElement).closest<HTMLElement>('[data-accent]'); if(accent?.dataset.accent){settings.accent=accent.dataset.accent as GameSettings['accent'];applySettings(settings);saveSettings(settings);render();return;}
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-tab], [data-action]');
   if (!target) return;
   if (target.dataset.tab) { event.preventDefault(); tab = target.dataset.tab as GameTab; render(); return; }
   if (target.dataset.action) handleAction(target.dataset.action, target);
 });
 root.addEventListener('change', async event => {
-  const target = event.target as HTMLInputElement;
-  if (target.id !== 'save-import' || !target.files?.[0]) return;
+  const target=event.target as HTMLInputElement|HTMLSelectElement;
+  if(target.dataset.setting){const key=target.dataset.setting as keyof GameSettings;if(key==='theme')settings.theme=target.value as GameSettings['theme'];else if(key==='customAccent')settings.customAccent=target.value;else if(key==='fontScale')settings.fontScale=Number(target.value) as GameSettings['fontScale'];else if(target instanceof HTMLInputElement&&target.type==='checkbox')(settings as unknown as Record<string,unknown>)[key]=target.checked;else if(target instanceof HTMLInputElement&&target.type==='range')(settings as unknown as Record<string,unknown>)[key]=Number(target.value);applySettings(settings);saveSettings(settings);if(key==='musicEnabled')settings.musicEnabled?startMusic():stopMusic();if(tab==='settings')render();return;}
+  if (!(target instanceof HTMLInputElement)||target.id!=='save-import'||!target.files?.[0]) return;
   try { save = await importSave(target.files[0]); tab = 'overview'; commit(); announce('Save imported successfully. Welcome back!'); render(); }
   catch (error) { announce(error instanceof Error ? error.message : 'Could not import that save file.'); }
 });
 render();
+if(settings.musicEnabled)root.addEventListener('pointerdown',()=>startMusic(),{once:true});
 if (offlineSeconds > 0) persistSave(save);
 window.setInterval(() => { const reward = claimWeeklyChart(save); if (reward > 0) notice = 'Weekly chart rewards collected: ' + money(reward) + '!'; tick(save, 1); commit(); }, 1000);
 window.addEventListener('pagehide', () => persistSave(save));
