@@ -74,7 +74,7 @@ function announce(message: string): void {
   }, 4200);
 }
 function navButton(id: GameTab, label: string, symbol: string): string {
-  return `<button class="nav-item ${tab === id ? 'active' : ''}" data-tab="${id}"><span>${symbol}</span>${label}</button>`;
+  return `<button type="button" class="nav-item ${tab === id ? 'active' : ''}" data-tab="${id}"><span>${symbol}</span>${label}</button>`;
 }
 function stat(label: string, value: string, detail: string, id: string): string {
   return `<article class="stat-card"><span>${label}</span><strong id="${id}">${value}</strong><small>${detail}</small></article>`;
@@ -82,7 +82,7 @@ function stat(label: string, value: string, detail: string, id: string): string 
 function heading(): string { return ({ overview: 'Build your sound.', artists: 'Find your next star.', studio: 'Make the next hit.', releases: 'Put music out there.', charts: 'Climb the charts.', milestones: 'Celebrate every milestone.', contracts: 'Build lasting partnerships.', concerts: 'Take the music live.', settings: 'Make it yours.', label: 'Run the business.' })[tab]; }
 function subheading(): string { return ({ overview: 'Turn a tiny independent label into a music powerhouse.', artists: 'Sign artists, discover genres and grow your creative roster.', studio: 'Invest in better equipment and make every release count.', releases: 'Produce singles, launch them and build your catalog.', charts: 'Track your biggest songs and collect weekly chart rewards.', milestones: 'Complete label goals and claim one-time rewards.', contracts: 'Renew artist deals and create collaborations.', concerts: 'Book shows, sell tickets and grow your audience.', settings: 'Customize the look, sound and feel of your label office.', label: 'Keep your label healthy and protect your progress.' })[tab]; }
 function shell(content: string): string {
-  return `<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-tab="overview"><span class="brand-mark">♫</span><span>SOUNDHOUSE<small>INDEPENDENT LABEL</small></span></a><div class="nav-caption">MANAGEMENT</div><nav>${navButton('overview', 'Dashboard', '▦')}${navButton('artists', 'Artists', '♬')}${navButton('studio', 'Studio', '⌘')}${navButton('releases', 'Releases', '◉')}${navButton('charts', 'Charts', '♛')}${navButton('milestones', 'Milestones', '✦')}${navButton('contracts', 'Contracts', '♧')}${navButton('concerts', 'Concerts', '♫')}${navButton('settings', 'Settings', '⚙')}${navButton('label', 'Label office', '▤')}</nav><div class="sidebar-bottom"><span class="online-dot"></span> LABEL STATUS<strong>Independent</strong><small>Built from the ground up.</small></div></aside><main class="main-area"><header class="topbar"><span class="mobile-brand">♫ SOUNDHOUSE</span><span class="breadcrumb">LABEL OFFICE <b>/</b> ${tab.toUpperCase()}</span><span class="save-status"><i></i> Saved on this device</span></header><div class="page"><section class="page-heading"><div><span class="eyebrow">✦ YOUR INDEPENDENT MUSIC EMPIRE</span><h1>${heading()}</h1><p>${subheading()}</p></div><span class="day-chip">✦ INDEPENDENT LABEL · LIVE</span></section><section class="stats-grid">${stat('AVAILABLE CASH', money(save.cash), `+${money(incomePerSecond(save))} / second`, 'cash-stat')}${stat('MONTHLY LISTENERS', compact(save.fans), 'Your growing fanbase', 'fans-stat')}${stat('TOTAL STREAMS', compact(save.totalStreams), 'Across your catalog', 'streams-stat')}${stat('LABEL REPUTATION', 'LEVEL ' + save.reputation, 'Earned through releases', 'rep-stat')}</section>${notice ? `<div class="notice" role="status">✦ ${escapeHtml(notice)}</div>` : ''}${content}<footer>♫ SOUNDHOUSE LABEL MANAGER <span>Progress saves automatically · Offline earnings capped at 8 hours</span></footer></div></main><nav class="mobile-nav">${navButton('overview','Home','▦')}${navButton('artists','Artists','♬')}${navButton('releases','Music','◉')}${navButton('concerts','Live','♫')}${navButton('settings','Settings','⚙')}</nav></div>`;
+  return `<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-tab="overview"><span class="brand-mark">♫</span><span>SOUNDHOUSE<small>INDEPENDENT LABEL</small></span></a><div class="nav-caption">MANAGEMENT</div><nav>${navButton('overview', 'Dashboard', '▦')}${navButton('artists', 'Artists', '♬')}${navButton('studio', 'Studio', '⌘')}${navButton('releases', 'Releases', '◉')}${navButton('charts', 'Charts', '♛')}${navButton('milestones', 'Milestones', '✦')}${navButton('contracts', 'Contracts', '♧')}${navButton('concerts', 'Concerts', '♫')}${navButton('settings', 'Settings', '⚙')}${navButton('label', 'Label office', '▤')}</nav><div class="sidebar-bottom"><span class="online-dot"></span> LABEL STATUS<strong>Independent</strong><small>Built from the ground up.</small></div></aside><main class="main-area"><header class="topbar"><span class="mobile-brand">♫ SOUNDHOUSE</span><span class="breadcrumb">LABEL OFFICE <b>/</b> ${tab.toUpperCase()}</span><span class="save-status"><i></i> Saved on this device</span></header><div class="page"><section class="page-heading"><div><span class="eyebrow">✦ YOUR INDEPENDENT MUSIC EMPIRE</span><h1>${heading()}</h1><p>${subheading()}</p></div><span class="day-chip">✦ INDEPENDENT LABEL · LIVE</span></section><section class="stats-grid">${stat('AVAILABLE CASH', money(save.cash), `+${money(incomePerSecond(save))} / second`, 'cash-stat')}${stat('MONTHLY LISTENERS', compact(save.fans), 'Your growing fanbase', 'fans-stat')}${stat('TOTAL STREAMS', compact(save.totalStreams), 'Across your catalog', 'streams-stat')}${stat('LABEL REPUTATION', 'LEVEL ' + save.reputation, 'Earned through releases', 'rep-stat')}</section>${notice ? `<div class="notice" role="status">✦ ${escapeHtml(notice)}</div>` : ''}${content}<footer>♫ SOUNDHOUSE LABEL MANAGER <span>Progress saves automatically · Offline earnings capped at 8 hours</span></footer></div></main><nav class="mobile-nav">${navButton('overview','Home','▦')}${navButton('artists','Artists','♬')}${navButton('studio','Studio','⌘')}${navButton('releases','Releases','◉')}${navButton('charts','Charts','♛')}${navButton('milestones','Goals','✦')}${navButton('contracts','Deals','♧')}${navButton('concerts','Live','♫')}${navButton('settings','Settings','⚙')}${navButton('label','Label','▤')}</nav></div>`;
 }
 function overview(): string {
   const next = save.artists.length === 0 ? 'Sign your first artist' : save.tracks.some(track => !track.releasedAt) ? 'Release your first single' : 'Grow your studio';
@@ -143,6 +143,14 @@ function labelPage(): string {
 function render(): void {
   const content = ({ overview, artists: artistsPage, studio: studioPage, releases: releasesPage, charts: chartsPage, milestones: milestonesPage, contracts: () => contractsPage(save), concerts: () => concertsPage(save), settings: () => settingsPage(settings, isAndroidApp), label: labelPage })[tab]();
   root!.innerHTML = shell(content);
+  // Game controls are never form submissions. Explicit types prevent mobile browsers
+  // from treating dynamically rendered buttons as submit controls.
+  root!.querySelectorAll<HTMLButtonElement>('button:not([type])').forEach(button => { button.type = 'button'; });
+  const mobileNav = root!.querySelector<HTMLElement>('.mobile-nav');
+  const activeMobileNavItem = mobileNav?.querySelector<HTMLElement>('.nav-item.active');
+  if (mobileNav && activeMobileNavItem) {
+    mobileNav.scrollLeft = Math.max(0, activeMobileNavItem.offsetLeft - (mobileNav.clientWidth - activeMobileNavItem.clientWidth) / 2);
+  }
   if (tab === 'settings' && isAndroidApp) {
     const status = root!.querySelector<HTMLElement>('#web-play-sync-status');
     if (status) void WebPlaySync.getStatus().then(info => {
@@ -250,13 +258,31 @@ function handleAction(action: string, target: HTMLElement): void {
   }
 }
 root.addEventListener('click', event => {
+  // Handle navigation in capture phase so nested controls cannot swallow taps.
+  if (!(event.target instanceof Element)) return;
   if(settings.musicEnabled)startMusic();
-  const accent=(event.target as HTMLElement).closest<HTMLElement>('[data-accent]'); if(accent?.dataset.accent){settings.accent=accent.dataset.accent as GameSettings['accent'];applySettings(settings);saveSettings(settings);root!.querySelectorAll<HTMLElement>('[data-accent]').forEach(item=>item.classList.toggle('selected',item===accent));return;}
-  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-tab], [data-action]');
-  if (!target) return;
-  if (target.dataset.tab) { event.preventDefault(); tab = target.dataset.tab as GameTab; render(); return; }
-  if (target.dataset.action) handleAction(target.dataset.action, target);
-});
+  const accent=event.target.closest<HTMLElement>('[data-accent]');
+  if(accent?.dataset.accent){
+    settings.accent=accent.dataset.accent as GameSettings['accent'];
+    applySettings(settings);saveSettings(settings);
+    root!.querySelectorAll<HTMLElement>('[data-accent]').forEach(item=>item.classList.toggle('selected',item===accent));
+    return;
+  }
+  const target = event.target.closest<HTMLElement>('[data-tab], [data-action]');
+  if (!target || !root!.contains(target)) return;
+  if (target.dataset.tab) {
+    event.preventDefault();
+    event.stopPropagation();
+    tab = target.dataset.tab as GameTab;
+    render();
+    return;
+  }
+  if (target.dataset.action) {
+    event.preventDefault();
+    event.stopPropagation();
+    handleAction(target.dataset.action, target);
+  }
+}, true);
 root.addEventListener('change', async event => {
   const target=event.target as HTMLInputElement|HTMLSelectElement;
   if(target.dataset.setting){const key=target.dataset.setting as keyof GameSettings;if(key==='theme')settings.theme=target.value as GameSettings['theme'];else if(key==='customAccent')settings.customAccent=target.value;else if(key==='fontScale')settings.fontScale=Number(target.value) as GameSettings['fontScale'];else if(target instanceof HTMLInputElement&&target.type==='checkbox')(settings as unknown as Record<string,unknown>)[key]=target.checked;else if(target instanceof HTMLInputElement&&target.type==='range')(settings as unknown as Record<string,unknown>)[key]=Number(target.value);applySettings(settings);saveSettings(settings);if(key==='musicEnabled')settings.musicEnabled?startMusic():stopMusic();return;}
