@@ -10,7 +10,7 @@ import { exportSave, importSave, loadSave, persistSave, resetSave } from './game
 import { rankings, timeToChart, claimWeeklyChart } from './game/charts';
 import { MILESTONES, milestoneProgress, claimMilestone } from './game/milestones';
 import { PROMOTION_TIERS, PROMOTION_COOLDOWN, applyPromotion } from './game/promotions';
-import { WebView } from '@capacitor/core';
+const WebView = registerPlugin<WebViewBridge>('WebView');
 
 interface WebViewBridge { setServerBasePath(options: { path: string }): Promise<void>; persistServerBasePath(): Promise<void>; }
 interface WebPlaySyncBridge { checkAndSync(): Promise<{ updated: boolean; version: string; message: string; basePath?: string }>; getStatus(): Promise<{ version: string; syncedAt: number; hasSynced: boolean }>; }
