@@ -1,7 +1,7 @@
 import './style.css';
 import type { GameTab, Artist } from './game/types';
 import { contractRenewalCost, isContractActive, renewContract } from './game/contracts';
-import { CONCERT_TIERS, concertQuote, launchConcert } from './game/concerts';
+import { launchConcert } from './game/concerts';
 import { loadSettings, saveSettings, applySettings, type GameSettings } from './game/settings';
 import { contractsPage, concertsPage, settingsPage } from './game/industry-ui';
 import { artistCost, artistTrainingCost, createArtist, createTrack, incomePerSecond, marketingCost, RECORDING_COST, RELEASE_COST, releaseTrack, studioCost, tick } from './game/economy';
@@ -38,11 +38,10 @@ function ping(): void {
     oscillator.connect(gain); gain.connect(audioContext.destination);
     oscillator.start(); oscillator.stop(audioContext.currentTime + 0.08);
   } catch { /* Optional audio never blocks gameplay. */ }
+  if(settings.vibrationEnabled && 'vibrate' in navigator) navigator.vibrate(12);
 }
 function startMusic():void{if(!settings.musicEnabled||musicOscillators.length)return;try{audioContext??=new AudioContext();if(audioContext.state==='suspended')void audioContext.resume();musicGain=audioContext.createGain();musicGain.gain.value=.012*settings.masterVolume;musicGain.connect(audioContext.destination);[110,164.81,220].forEach((hz,i)=>{const o=audioContext!.createOscillator();o.type=i===1?'sine':'triangle';o.frequency.value=hz;o.connect(musicGain!);o.start();musicOscillators.push(o);});}catch{/* optional audio */}}
 function stopMusic():void{musicOscillators.forEach(o=>{try{o.stop();}catch{/* stopped */}});musicOscillators=[];musicGain?.disconnect();musicGain=null;}
-function activeArtist(a:Artist):boolean{return isContractActive(a);}
-function contractLabel(a:Artist):string{return !a.contractEndsAt?'LEGACY DEAL':activeArtist(a)?'ACTIVE · '+Math.max(1,Math.ceil((a.contractEndsAt-Date.now())/86400000))+' DAYS LEFT':'CONTRACT EXPIRED';}
 function announce(message: string): void {
   notice = message; window.clearTimeout(noticeTimer); render();
   noticeTimer = window.setTimeout(() => { notice = ''; render(); }, 4200);
