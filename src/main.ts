@@ -257,24 +257,30 @@ function handleAction(action: string, target: HTMLElement): void {
     save = resetSave(); tab = 'overview'; commit(); announce('A fresh label has been created. Let’s make some music!'); return;
   }
 }
-root.addEventListener('click', event => {
-  // Handle navigation in capture phase so nested controls cannot swallow taps.
+// Delegate game taps from document capture instead of the replaceable app root.
+// This keeps navigation working even when another script mutates or re-parents UI.
+document.addEventListener('click', event => {
   if (!(event.target instanceof Element)) return;
-  if(settings.musicEnabled)startMusic();
-  const accent=event.target.closest<HTMLElement>('[data-accent]');
-  if(accent?.dataset.accent){
-    settings.accent=accent.dataset.accent as GameSettings['accent'];
-    applySettings(settings);saveSettings(settings);
-    root!.querySelectorAll<HTMLElement>('[data-accent]').forEach(item=>item.classList.toggle('selected',item===accent));
+  const target = event.target.closest<HTMLElement>('[data-tab], [data-action], [data-accent]');
+  if (!target || !root!.contains(target)) return;
+  if (settings.musicEnabled) startMusic();
+  if (target.dataset.accent) {
+    event.preventDefault();
+    event.stopPropagation();
+    settings.accent = target.dataset.accent as GameSettings['accent'];
+    applySettings(settings);
+    saveSettings(settings);
+    root!.querySelectorAll<HTMLElement>('[data-accent]').forEach(item => item.classList.toggle('selected', item === target));
     return;
   }
-  const target = event.target.closest<HTMLElement>('[data-tab], [data-action]');
-  if (!target || !root!.contains(target)) return;
   if (target.dataset.tab) {
     event.preventDefault();
     event.stopPropagation();
-    tab = target.dataset.tab as GameTab;
-    render();
+    const nextTab = target.dataset.tab as GameTab;
+    if (['overview', 'artists', 'studio', 'releases', 'charts', 'milestones', 'contracts', 'concerts', 'settings', 'label'].includes(nextTab)) {
+      tab = nextTab;
+      render();
+    }
     return;
   }
   if (target.dataset.action) {
