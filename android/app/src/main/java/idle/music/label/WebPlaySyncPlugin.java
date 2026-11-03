@@ -1,7 +1,6 @@
 package idle.music.label;
 
 import android.content.SharedPreferences;
-import android.util.AtomicFile;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -13,7 +12,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -62,6 +60,7 @@ public class WebPlaySyncPlugin extends Plugin {
                 String manifestUrl = findAssetUrl(assets, "web-play-manifest.json");
                 if (manifestUrl == null) throw new IllegalStateException("Web Play manifest is missing from the repository release.");
                 JSONObject manifest = new JSONObject(readUrl(manifestUrl, 2_000_000));
+                if (!"soundhouse-web-play".equals(manifest.optString("format", "")) || manifest.optInt("formatVersion", 0) != 1) throw new IllegalStateException("Unsupported Web Play manifest format.");
                 String version = manifest.optString("version", "");
                 String zipName = manifest.optString("bundle", "web-play.zip");
                 String expectedHash = manifest.optString("sha256", "").toLowerCase(Locale.ROOT);
@@ -103,6 +102,8 @@ public class WebPlaySyncPlugin extends Plugin {
                 if (!staging.renameTo(active)) throw new IllegalStateException("Could not activate the verified Web Play bundle.");
 
                 prefs.edit().putString(KEY_VERSION, version).putLong(KEY_SYNCED_AT, System.currentTimeMillis()).apply();
+                getContext().getSharedPreferences(com.getcapacitor.plugin.WebView.WEBVIEW_PREFS_NAME, 0)
+                    .edit().putString(com.getcapacitor.plugin.WebView.CAP_SERVER_PATH, active.getAbsolutePath()).apply();
                 JSObject result = new JSObject();
                 result.put("updated", true);
                 result.put("version", version);
