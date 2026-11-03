@@ -10,9 +10,8 @@ import { exportSave, importSave, loadSave, persistSave, resetSave } from './game
 import { rankings, timeToChart, claimWeeklyChart } from './game/charts';
 import { MILESTONES, milestoneProgress, claimMilestone } from './game/milestones';
 import { PROMOTION_TIERS, PROMOTION_COOLDOWN, applyPromotion } from './game/promotions';
-const WebView = registerPlugin<WebViewBridge>('WebView');
-
 interface WebViewBridge { setServerBasePath(options: { path: string }): Promise<void>; persistServerBasePath(): Promise<void>; }
+const WebView = registerPlugin<WebViewBridge>('WebView');
 interface WebPlaySyncBridge { checkAndSync(): Promise<{ updated: boolean; version: string; message: string; basePath?: string }>; getStatus(): Promise<{ version: string; syncedAt: number; hasSynced: boolean }>; }
 const WebPlaySync = registerPlugin<WebPlaySyncBridge>('WebPlaySync');
 interface AppUpdateBridge { checkForUpdate(): Promise<{ updateAvailable: boolean; currentVersion?: string; latestVersion?: string; releaseUrl?: string; apkUrl?: string; message?: string }>; openReleasePage(options: { url: string }): Promise<void>; }
@@ -125,6 +124,14 @@ function labelPage(): string {
 function render(): void {
   const content = ({ overview, artists: artistsPage, studio: studioPage, releases: releasesPage, charts: chartsPage, milestones: milestonesPage, contracts: () => contractsPage(save), concerts: () => concertsPage(save), settings: () => settingsPage(settings, isAndroidApp), label: labelPage })[tab]();
   root!.innerHTML = shell(content);
+  if (tab === 'settings' && isAndroidApp) {
+    const status = root!.querySelector<HTMLElement>('#web-play-sync-status');
+    if (status) void WebPlaySync.getStatus().then(info => {
+      status.textContent = info.hasSynced
+        ? 'Synced repository version: ' + info.version + (info.syncedAt ? ' · ' + new Date(info.syncedAt).toLocaleString() : '')
+        : 'No repository bundle synced yet. The app is using its bundled Web Play version.';
+    }).catch(() => { if (status) status.textContent = 'Sync status is currently unavailable.'; });
+  }
 }
 function refreshLiveStats(): void {
   const cash = root!.querySelector('#cash-stat'); if (cash) cash.textContent = money(save.cash);
