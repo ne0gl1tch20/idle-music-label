@@ -44,7 +44,7 @@ export function loadSave(): { save: GameSave; offlineSeconds: number } {
     const save: GameSave = parsed.version === 2
       ? { ...fresh, ...parsed, version: 2,
           artists: Array.isArray(parsed.artists) ? parsed.artists as Artist[] : [],
-          tracks: Array.isArray(parsed.tracks) ? parsed.tracks as Track[] : [], concerts: Array.isArray(parsed.concerts) ? parsed.concerts : [],
+          tracks: Array.isArray(parsed.tracks) ? parsed.tracks as Track[] : [],
           claimedMilestones: Array.isArray(parsed.claimedMilestones) ? parsed.claimedMilestones.filter((id): id is string => typeof id === 'string') : [], concerts: Array.isArray(parsed.concerts) ? parsed.concerts : [] }
       : migrateLegacy(parsed, fresh);
     const elapsed = Math.max(0, Math.floor((Date.now() - (Number(save.lastSavedAt) || Date.now())) / 1000));
