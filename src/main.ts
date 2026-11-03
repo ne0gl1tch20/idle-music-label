@@ -10,8 +10,11 @@ import { exportSave, importSave, loadSave, persistSave, resetSave } from './game
 import { rankings, timeToChart, claimWeeklyChart } from './game/charts';
 import { MILESTONES, milestoneProgress, claimMilestone } from './game/milestones';
 import { PROMOTION_TIERS, PROMOTION_COOLDOWN, applyPromotion } from './game/promotions';
-import { createSyncCode, parseSyncCode } from './game/sync';
+import { WebView } from '@capacitor/core';
 
+interface WebViewBridge { setServerBasePath(options: { path: string }): Promise<void>; persistServerBasePath(): Promise<void>; }
+interface WebPlaySyncBridge { checkAndSync(): Promise<{ updated: boolean; version: string; message: string; basePath?: string }>; getStatus(): Promise<{ version: string; syncedAt: number; hasSynced: boolean }>; }
+const WebPlaySync = registerPlugin<WebPlaySyncBridge>('WebPlaySync');
 interface AppUpdateBridge { checkForUpdate(): Promise<{ updateAvailable: boolean; currentVersion?: string; latestVersion?: string; releaseUrl?: string; apkUrl?: string; message?: string }>; openReleasePage(options: { url: string }): Promise<void>; }
 const AppUpdate = registerPlugin<AppUpdateBridge>('AppUpdate');
 const isAndroidApp = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
@@ -179,23 +182,28 @@ function handleAction(action: string, target: HTMLElement): void {
     if (!milestone || !claimMilestone(save, id)) return announce('That milestone is not ready to claim.');
     commit(); ping(); announce('Milestone unlocked! You earned ' + money(milestone.rewardCash) + ' and ' + compact(milestone.rewardFans) + ' fans.'); render(); return;
   }
-  if (action === 'sync-export') {
-    const code = createSyncCode(save);
-    const field = root!.querySelector<HTMLTextAreaElement>('#sync-code');
-    if (field) { field.value = code; field.focus(); field.select(); }
-    const copy = async () => {
-      try { await navigator.clipboard.writeText(code); announce('Sync code copied. Paste it into Web Play Sync on your other device.'); }
-      catch { const copied = document.execCommand('copy'); if (copied) announce('Sync code copied. Paste it into Web Play Sync on your other device.'); else window.prompt('Copy this Web Play Sync code:', code); }
-    };
-    void copy(); return;
-  }
-  if (action === 'sync-import') {
-    const code = root!.querySelector<HTMLTextAreaElement>('#sync-code')?.value ?? '';
-    try {
-      const imported = parseSyncCode(code);
-      if (!window.confirm('Replace this device’s current label with the imported sync save?')) return;
-      save = imported; tab = 'overview'; commit(); announce('Web Play Sync complete. Your label is now loaded on this device.'); render();
-    } catch (error) { announce(error instanceof Error ? error.message : 'Could not import that sync code.'); }
+  if (action === 'sync-web-play') {
+    if (!isAndroidApp) return;
+    const status = root!.querySelector<HTMLElement>('#web-play-sync-status');
+    const button = target as HTMLButtonElement;
+    button.disabled = true; button.textContent = 'Checking repository…';
+    if (status) status.textContent = 'Checking the latest Web Play release…';
+    void WebPlaySync.checkAndSync().then(async result => {
+      if (status) status.textContent = result.message + ' · ' + result.version;
+      if (result.updated && result.basePath) {
+        await WebView.setServerBasePath({ path: result.basePath });
+        await WebView.persistServerBasePath();
+        announce('Web Play updated. Restarting the game with the new repository bundle…');
+        window.setTimeout(() => window.location.reload(), 250);
+      } else {
+        announce(result.message);
+        button.disabled = false; button.textContent = 'Check & sync Web Play ↻';
+      }
+    }).catch(error => {
+      const message = error instanceof Error ? error.message : 'Web Play sync failed.';
+      if (status) status.textContent = message;
+      announce(message); button.disabled = false; button.textContent = 'Retry Web Play sync ↻';
+    });
     return;
   }
   if (action === 'check-app-update') {
