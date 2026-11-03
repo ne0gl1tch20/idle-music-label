@@ -245,6 +245,12 @@ root.addEventListener('change', async event => {
   try { save = await importSave(target.files[0]); tab = 'overview'; commit(); announce('Save imported successfully. Welcome back!'); render(); }
   catch (error) { announce(error instanceof Error ? error.message : 'Could not import that save file.'); }
 });
+window.addEventListener('soundhouse:save-updated', () => {
+  save = loadSave().save;
+  commit();
+  render();
+});
+
 render();
 // Android mirrors the GuessTheNumber flow: check the repository Web Play manifest at startup,
 // download only when its published bundle version differs, then activate the verified cache.
