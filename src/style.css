@@ -46,3 +46,7 @@ button:active{transform:scale(.97)}
 /* Weekly chart archive */
 .chart-history-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.chart-history-card{border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:13px;min-width:0;animation:card-enter .3s ease both}.chart-history-card>b{font:600 11px 'Space Grotesk';display:block;margin-bottom:10px}.chart-history-card>div{display:grid;gap:7px}.chart-history-card span{font-size:9px;color:var(--muted);line-height:1.4}.chart-history-card span:first-child{color:var(--user-accent)}
 @media(max-width:650px){.chart-history-list{grid-template-columns:1fr}}
+
+/* Release marketing campaigns */
+.promo-summary{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:11px 0 8px}.promo-summary small{font-size:8px;color:var(--muted)}.promo-summary .cooldown-label{color:#f2bd77;text-align:right}.promo-actions{display:grid;grid-template-columns:1fr;gap:5px}.promo-btn{border:1px solid #8d75bd55;border-radius:6px;background:#a98bff12;color:#d4c4ff;padding:7px 8px;font-size:8px;font-weight:700;text-align:left;transition:background .15s,border-color .15s,transform .15s}.promo-btn:hover:not(:disabled){background:#a98bff26;border-color:#a98bff;transform:translateX(2px)}.promo-btn:disabled{opacity:.35;cursor:not-allowed}
+@media(max-width:650px){.promo-actions{grid-template-columns:1fr 1fr}.promo-actions .promo-btn:last-child{grid-column:1/-1}.promo-summary{align-items:flex-start;flex-direction:column}}
